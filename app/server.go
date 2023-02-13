@@ -1,12 +1,10 @@
 package main
 
 import (
+	"codecrafters-redis-go/app/resp"
 	"fmt"
 	"net"
 	"os"
-	// Uncomment this block to pass the first stage
-	// "net"
-	// "os"
 )
 
 func main() {
@@ -17,9 +15,13 @@ func main() {
 		fmt.Println("Failed to bind to port 6379")
 		os.Exit(1)
 	}
-	_, err = l.Accept()
+	c, err := l.Accept()
 	if err != nil {
 		fmt.Println("Error accepting connection: ", err.Error())
+		os.Exit(1)
+	}
+	if err := resp.NewEncoder(c).Encode("OK"); err != nil {
+		fmt.Println("Error responding to PING on startup: ", err.Error())
 		os.Exit(1)
 	}
 }
