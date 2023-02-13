@@ -21,10 +21,6 @@ func (e *Encoder) Encode(v any) error {
 	return err
 }
 
-func (e *Encoder) encode(v any) error {
-
-}
-
 func (e *Encoder) encodeStr(str string) error {
 	_, err := e.w.Write([]byte(str))
 	return err
