@@ -20,7 +20,7 @@ func main() {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
-	if err := resp.NewEncoder(c).Encode("OK"); err != nil {
+	if err := resp.NewEncoder(c).Encode("PONG"); err != nil {
 		fmt.Println("Error responding to PING on startup: ", err.Error())
 		os.Exit(1)
 	}

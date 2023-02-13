@@ -26,7 +26,7 @@ func (e *Encoder) encodeStr(str string) error {
 	return err
 }
 
-// prefix writes b to w, calls f with t, then writes `\r\n` to w. Any error which occurs is returned.
+// prefix writes b to w, calls f with t, then writes "\r\n" to w. Any error which occurs is returned.
 func prefix[T any](w io.Writer, b byte, f func(T) error, t T) error {
 	if _, err := w.Write([]byte{b}); err != nil {
 		return err
@@ -34,7 +34,7 @@ func prefix[T any](w io.Writer, b byte, f func(T) error, t T) error {
 	if err := f(t); err != nil {
 		return err
 	}
-	if _, err := w.Write([]byte(`\r\n`)); err != nil {
+	if _, err := w.Write([]byte("\r\n")); err != nil {
 		return err
 	}
 	return nil
