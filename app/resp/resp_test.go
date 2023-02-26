@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestEncode(t *testing.T) {
+func TestEncoder_Encode(t *testing.T) {
 	tests := []struct {
 		name     string
 		v        any
@@ -109,7 +109,7 @@ func TestEncode(t *testing.T) {
 	}
 }
 
-func TestDecode_strings(t *testing.T) {
+func TestDecoder_Decode_strings(t *testing.T) {
 	tests := []struct {
 		name     string
 		bytes    string
@@ -139,7 +139,7 @@ func TestDecode_strings(t *testing.T) {
 	}
 }
 
-func TestDecode_errors(t *testing.T) {
+func TestDecoder_Decode_errors(t *testing.T) {
 	tests := []struct {
 		name     string
 		bytes    string
@@ -169,7 +169,7 @@ func TestDecode_errors(t *testing.T) {
 	}
 }
 
-func TestDecode_ints(t *testing.T) {
+func TestDecoder_Decode_ints(t *testing.T) {
 	tests := []struct {
 		name     string
 		bytes    string
@@ -224,7 +224,7 @@ func TestDecode_ints(t *testing.T) {
 	}
 }
 
-func TestDecode_bulkString(t *testing.T) {
+func TestDecoder_Decode_bulkString(t *testing.T) {
 	tests := []struct {
 		name     string
 		bytes    string
@@ -247,6 +247,41 @@ func TestDecode_bulkString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			b := bytes.NewBufferString(tt.bytes)
 			var out []byte
+			err := resp.NewDecoder(b).Decode(&out)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+			assert.NoError(t, err)
+
+			assert.EqualValues(t, tt.expected, out)
+		})
+	}
+}
+
+func TestDecoder_Decode_arrays(t *testing.T) {
+	tests := []struct {
+		name     string
+		bytes    string
+		expected resp.Array
+		wantErr  error
+	}{
+		{
+			name:     "empty array",
+			bytes:    "*0\r\n\r\n",
+			expected: resp.Array{},
+		},
+		{
+			name:     "nested empty arrays",
+			bytes:    "*2\r\n*0\r\n*0\r\n\r\n",
+			expected: resp.Array{resp.Array{}, resp.Array{}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := bytes.NewBufferString(tt.bytes)
+			var out resp.Array
 			err := resp.NewDecoder(b).Decode(&out)
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)

@@ -2,7 +2,9 @@ package main
 
 import (
 	"codecrafters-redis-go/app/resp"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -28,17 +30,65 @@ func handleConnection(c net.Conn) {
 	enc := resp.NewEncoder(c)
 	dec := resp.NewDecoder(c)
 	for {
-		cmd := "PING"
-		if err := dec.Decode(&cmd); err != nil {
-			fmt.Println("error decoding command: ", err.Error())
-			//os.Exit(1)
-		}
-		switch cmd {
-		case "PING":
-			if err := enc.Encode("PONG"); err != nil {
-				fmt.Println("error responding to PING", err.Error())
-				os.Exit(1)
+		var input resp.Array
+		if err := dec.Decode(&input); err != nil {
+			if errors.Is(err, io.EOF) {
+				return
 			}
+			fmt.Println("error decoding command: ", err.Error())
+			continue
+		}
+		cmd, err := parseCommand(input)
+		if err != nil {
+			fmt.Println("error parsing command: ", err.Error())
+			continue
+		}
+		switch cmd.Root() {
+		case CmdPing:
+			handlePing(enc)
 		}
 	}
+}
+
+func handlePing(enc *resp.Encoder) {
+	if err := enc.Encode("PONG"); err != nil {
+		fmt.Println("error responding to PING", err.Error())
+	}
+}
+
+type Command struct {
+	Args [][]byte
+}
+
+// Root returns the root command key.
+func (c Command) Root() Cmd {
+	switch string(c.Args[0]) {
+	case string(CmdPing):
+		return CmdPing
+	default:
+		return CmdUnknown
+	}
+}
+
+type Cmd string
+
+const (
+	CmdPing    Cmd = "PING"
+	CmdUnknown     = "UNKNOWN"
+)
+
+// parseCommand takes a resp.Array consisting of bulk strings and parses it into a Command.
+func parseCommand(raw resp.Array) (Command, error) {
+	var result Command
+	if len(raw) == 0 {
+		return result, fmt.Errorf("empty array")
+	}
+	for i := 0; i < len(raw); i++ {
+		bytes, ok := raw[i].([]byte)
+		if !ok {
+			return result, fmt.Errorf("index %d not a bulk string", i)
+		}
+		result.Args = append(result.Args, bytes)
+	}
+	return result, nil
 }

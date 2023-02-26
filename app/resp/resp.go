@@ -205,7 +205,7 @@ func (d *Decoder) decodeBulkString(v any) error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("length", length)
 	if length > 512*1024*1024 { // maximum 512 MiB, according to protocol
 		return fmt.Errorf("%w: length of bulk string exceeds 512 MiB", ErrProtocol)
 	}
@@ -228,7 +228,7 @@ func (d *Decoder) decodeArray(v any) error {
 	}
 	target, ok := v.(*Array)
 	if !ok {
-		return fmt.Errorf("%w: expected v to have type *[]Array", ErrUnexpectedType)
+		return fmt.Errorf("%w: expected v to have type *resp.Array", ErrUnexpectedType)
 	}
 	length, err := readLength(bytes, d.r)
 	if err != nil {
@@ -268,24 +268,28 @@ func (d *Decoder) decodeArray(v any) error {
 			if err := d.decodeBulkString(&target); err != nil {
 				return fmt.Errorf("error decoding bulk string at idx %d: %w", i, err)
 			}
+			result[i] = target
 		case prefixArray:
 			var target Array
 			if err := d.decodeArray(&target); err != nil {
 				return fmt.Errorf("error decoding array at idx %d: %w", i, err)
 			}
+			result[i] = target
+		default:
+			return fmt.Errorf("unexpected prefix: %d", bytes[0])
 		}
 	}
 	*target = result
 	return nil
 }
 
-// readNext advances the reader to the next carriage return and returns all bytes read.
+// readNext advances the reader to the next new line and returns bytes between the current prefix and
 func (d *Decoder) readNext() ([]byte, error) {
-	bytes, err := d.r.ReadBytes('\r') // TODO: why not to \n?!
+	bytes, err := d.r.ReadBytes('\n') // TODO: why not to \n?!
 	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("error decoding next entity: %w", err)
 	}
-	return bytes[1 : len(bytes)-1], err
+	return bytes[1 : len(bytes)-2], err
 }
 
 // readInt reads an integer from the provided sequence of bytes.
@@ -301,10 +305,6 @@ func readLength(bytes []byte, r *bufio.Reader) (int, error) {
 	length, err := readInt(bytes)
 	if err != nil {
 		return 0, err
-	}
-	n, err := r.Discard(1) // discard \n
-	if err != nil && n != 1 {
-		return 0, fmt.Errorf(`%w: \r not followed by \n`, ErrProtocol)
 	}
 	return length, err
 }
