@@ -9,7 +9,7 @@ import (
 )
 
 // DefaultDebug can be set to true to enable debug mode.
-const DefaultDebug = false
+const DefaultDebug = true
 
 // Int is an integer number with up to 64 bits of precision, as a signed integer.
 type Int int64
@@ -132,7 +132,7 @@ func (d *Decoder) Decode(v any) error {
 	bytes, err := d.r.Peek(1)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return fmt.Errorf("%w: unexpected EOF", ErrProtocol)
+			return fmt.Errorf("unexpected EOF: %w", err)
 		}
 		return fmt.Errorf("error decoding next entity: %w", err)
 	}
@@ -225,6 +225,9 @@ func (d *Decoder) decodeBulkString(v any) error {
 	// drop the \r\n at the end
 	if n, err := d.r.Discard(2); err != nil || n != 2 {
 		return fmt.Errorf("%w: expected \\r\\n after bulk string", ErrProtocol)
+	}
+	if d.debug {
+		fmt.Printf("DEBUG: %s\n", string(*target))
 	}
 	return nil
 }
