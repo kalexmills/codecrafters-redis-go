@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
 )
 
@@ -35,9 +36,22 @@ func NewEncoder(w io.Writer) *Encoder {
 
 // TODO: handle the null bulk string properly
 
+func isNil(v any) bool {
+	if v == nil {
+		return true
+	}
+	val := reflect.ValueOf(v)
+	switch val.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return val.IsNil()
+	default:
+		return false
+	}
+}
+
 func (e *Encoder) Encode(v any) error {
 	var err error
-	if v == nil {
+	if isNil(v) {
 		_, err = e.w.Write([]byte("$-1\r\n"))
 		return err
 	}
