@@ -47,6 +47,10 @@ func handleConnection(c net.Conn) {
 		switch cmd.Root() {
 		case CmdPing:
 			handlePing(enc, cmd)
+		case CmdEcho:
+			handleEcho(enc, cmd)
+		case CmdUnknown:
+			fmt.Println("unrecognized command")
 		}
 	}
 }
@@ -54,16 +58,30 @@ func handleConnection(c net.Conn) {
 func handlePing(enc *resp.Encoder, cmd Command) {
 	if len(cmd.Args) == 1 {
 		if err := enc.Encode("PONG"); err != nil {
-			fmt.Println("error responding to PING", err.Error())
+			fmt.Println("error responding to PING:", err)
 		}
 		return
 	}
 	if len(cmd.Args) != 2 {
-		fmt.Printf("error; received PING with %d arguments, expected 0 or 1\n", len(cmd.Args))
+		if err := enc.Encode(fmt.Errorf("ERR wrong number arguments for command")); err != nil {
+			fmt.Println("error sending error:", err)
+		}
 		return
 	}
 	if err := enc.Encode(cmd.Args[1]); err != nil {
-		fmt.Println("error responding to PING", err.Error())
+		fmt.Println("error responding to PING:", err)
+	}
+}
+
+func handleEcho(enc *resp.Encoder, cmd Command) {
+	if len(cmd.Args) != 2 {
+		if err := enc.Encode(fmt.Errorf("ERR wrong number arguments for command")); err != nil {
+			fmt.Println("error sending error:", err)
+		}
+		return
+	}
+	if err := enc.Encode(cmd.Args[1]); err != nil {
+		fmt.Println("error responding to ECHO:", err)
 	}
 }
 
@@ -76,6 +94,8 @@ func (c Command) Root() Cmd {
 	switch strings.ToUpper(string(c.Args[0])) {
 	case string(CmdPing):
 		return CmdPing
+	case string(CmdEcho):
+		return CmdEcho
 	default:
 		return CmdUnknown
 	}
@@ -85,7 +105,8 @@ type Cmd string
 
 const (
 	CmdPing    Cmd = "PING"
-	CmdUnknown     = "UNKNOWN"
+	CmdEcho    Cmd = "ECHO"
+	CmdUnknown Cmd = "UNKNOWN"
 )
 
 // parseCommand takes a resp.Array consisting of bulk strings and parses it into a Command.
