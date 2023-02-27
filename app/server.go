@@ -45,13 +45,23 @@ func handleConnection(c net.Conn) {
 		}
 		switch cmd.Root() {
 		case CmdPing:
-			handlePing(enc)
+			handlePing(enc, cmd)
 		}
 	}
 }
 
-func handlePing(enc *resp.Encoder) {
-	if err := enc.Encode("PONG"); err != nil {
+func handlePing(enc *resp.Encoder, cmd Command) {
+	if len(cmd.Args) == 1 {
+		if err := enc.Encode("PONG"); err != nil {
+			fmt.Println("error responding to PING", err.Error())
+		}
+		return
+	}
+	if len(cmd.Args) != 2 {
+		fmt.Printf("error; received PING with %d arguments, expected 0 or 1\n", len(cmd.Args))
+		return
+	}
+	if err := enc.Encode(cmd.Args[1]); err != nil {
 		fmt.Println("error responding to PING", err.Error())
 	}
 }
