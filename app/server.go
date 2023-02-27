@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -72,7 +73,7 @@ type Command struct {
 
 // Root returns the root command key.
 func (c Command) Root() Cmd {
-	switch string(c.Args[0]) {
+	switch strings.ToUpper(string(c.Args[0])) {
 	case string(CmdPing):
 		return CmdPing
 	default:
