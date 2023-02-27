@@ -36,11 +36,13 @@ func handleConnection(c net.Conn) {
 				return
 			}
 			fmt.Println("error decoding command: ", err.Error())
+			os.Exit(1)
 			continue
 		}
 		cmd, err := parseCommand(input)
 		if err != nil {
 			fmt.Println("error parsing command: ", err.Error())
+			os.Exit(1)
 			continue
 		}
 		switch cmd.Root() {

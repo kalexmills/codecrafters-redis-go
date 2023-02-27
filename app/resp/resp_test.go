@@ -276,6 +276,11 @@ func TestDecoder_Decode_arrays(t *testing.T) {
 			bytes:    "*2\r\n*0\r\n*0\r\n\r\n",
 			expected: resp.Array{resp.Array{}, resp.Array{}},
 		},
+		{
+			name:     "incoming command",
+			bytes:    "*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n",
+			expected: resp.Array{[]byte("LLEN"), []byte("mylist")},
+		},
 	}
 
 	for _, tt := range tests {

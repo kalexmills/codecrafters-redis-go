@@ -8,6 +8,9 @@ import (
 	"strconv"
 )
 
+// DefaultDebug can be set to true to enable debug mode.
+const DefaultDebug = false
+
 // Int is an integer number with up to 64 bits of precision, as a signed integer.
 type Int int64
 
@@ -113,11 +116,12 @@ func encodePrefix(w io.Writer, b byte, f func() error) error {
 }
 
 type Decoder struct {
-	r *bufio.Reader
+	r     *bufio.Reader
+	debug bool
 }
 
 func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{r: bufio.NewReader(r)}
+	return &Decoder{r: bufio.NewReader(r), debug: DefaultDebug}
 }
 
 var ErrProtocol = errors.New("protocol error")
@@ -201,11 +205,11 @@ func (d *Decoder) decodeBulkString(v any) error {
 	if !ok {
 		return fmt.Errorf("%w: expected v to have type *[]byte", ErrUnexpectedType)
 	}
-	length, err := readLength(bytes, d.r)
+	length, err := readLength(bytes)
 	if err != nil {
 		return err
 	}
-	fmt.Println("length", length)
+
 	if length > 512*1024*1024 { // maximum 512 MiB, according to protocol
 		return fmt.Errorf("%w: length of bulk string exceeds 512 MiB", ErrProtocol)
 	}
@@ -217,6 +221,10 @@ func (d *Decoder) decodeBulkString(v any) error {
 	}
 	if n != length {
 		return fmt.Errorf("%w: expected %d bytes, read %d before EOF", ErrProtocol, length, n)
+	}
+	// drop the \r\n at the end
+	if n, err := d.r.Discard(2); err != nil || n != 2 {
+		return fmt.Errorf("%w: expected \\r\\n after bulk string", ErrProtocol)
 	}
 	return nil
 }
@@ -230,7 +238,7 @@ func (d *Decoder) decodeArray(v any) error {
 	if !ok {
 		return fmt.Errorf("%w: expected v to have type *resp.Array", ErrUnexpectedType)
 	}
-	length, err := readLength(bytes, d.r)
+	length, err := readLength(bytes)
 	if err != nil {
 		return err
 	}
@@ -285,9 +293,12 @@ func (d *Decoder) decodeArray(v any) error {
 
 // readNext advances the reader to the next new line and returns bytes between the current prefix and
 func (d *Decoder) readNext() ([]byte, error) {
-	bytes, err := d.r.ReadBytes('\n') // TODO: why not to \n?!
+	bytes, err := d.r.ReadBytes('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("error decoding next entity: %w", err)
+	}
+	if d.debug {
+		fmt.Printf("DEBUG: read '%s'\n", string(bytes))
 	}
 	return bytes[1 : len(bytes)-2], err
 }
@@ -301,7 +312,7 @@ func readInt(bytes []byte) (result int, err error) {
 	return result, err
 }
 
-func readLength(bytes []byte, r *bufio.Reader) (int, error) {
+func readLength(bytes []byte) (int, error) {
 	length, err := readInt(bytes)
 	if err != nil {
 		return 0, err
