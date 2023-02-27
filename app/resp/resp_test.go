@@ -17,6 +17,11 @@ func TestEncoder_Encode(t *testing.T) {
 		expected []byte
 	}{
 		{
+			name:     "nil",
+			v:        nil,
+			expected: []byte("$-1\r\n"),
+		},
+		{
 			name:     "string",
 			v:        "hello",
 			expected: []byte("+hello\r\n"),
@@ -232,6 +237,11 @@ func TestDecoder_Decode_bulkString(t *testing.T) {
 		wantErr  error
 	}{
 		{
+			name:     "nil",
+			bytes:    "$-1\r\n",
+			expected: nil,
+		},
+		{
 			name:     "hello world",
 			bytes:    "$11\r\nhello world\r\n",
 			expected: []byte("hello world"),
@@ -266,6 +276,11 @@ func TestDecoder_Decode_arrays(t *testing.T) {
 		expected resp.Array
 		wantErr  error
 	}{
+		{
+			name:     "array of nils",
+			bytes:    "*2\r\n$-1\r\n$-1\r\n",
+			expected: resp.Array{nil, nil},
+		},
 		{
 			name:     "empty array",
 			bytes:    "*0\r\n\r\n",

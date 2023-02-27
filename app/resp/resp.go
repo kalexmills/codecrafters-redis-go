@@ -9,7 +9,7 @@ import (
 )
 
 // DefaultDebug can be set to true to enable debug mode.
-const DefaultDebug = true
+const DefaultDebug = false
 
 // Int is an integer number with up to 64 bits of precision, as a signed integer.
 type Int int64
@@ -33,8 +33,14 @@ func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{w: w}
 }
 
+// TODO: handle the null bulk string properly
+
 func (e *Encoder) Encode(v any) error {
 	var err error
+	if v == nil {
+		_, err = e.w.Write([]byte("$-1\r\n"))
+		return err
+	}
 	switch v := v.(type) {
 	case int:
 		err = e.encodeInt(Int(v))
@@ -201,15 +207,19 @@ func (d *Decoder) decodeBulkString(v any) error {
 	if err != nil {
 		return err
 	}
-	target, ok := v.(*[]byte)
-	if !ok {
-		return fmt.Errorf("%w: expected v to have type *[]byte", ErrUnexpectedType)
-	}
 	length, err := readLength(bytes)
 	if err != nil {
 		return err
 	}
 
+	if length == -1 { // it's the special nil value; set the receiver to nil
+		return nil
+	}
+
+	target, ok := v.(*[]byte)
+	if !ok {
+		return fmt.Errorf("%w: expected v to have type *[]byte", ErrUnexpectedType)
+	}
 	if length > 512*1024*1024 { // maximum 512 MiB, according to protocol
 		return fmt.Errorf("%w: length of bulk string exceeds 512 MiB", ErrProtocol)
 	}
@@ -279,7 +289,9 @@ func (d *Decoder) decodeArray(v any) error {
 			if err := d.decodeBulkString(&target); err != nil {
 				return fmt.Errorf("error decoding bulk string at idx %d: %w", i, err)
 			}
-			result[i] = target
+			if target != nil { // leave it as an untyped nil
+				result[i] = target
+			}
 		case prefixArray:
 			var target Array
 			if err := d.decodeArray(&target); err != nil {

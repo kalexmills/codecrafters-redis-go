@@ -49,8 +49,12 @@ func handleConnection(c net.Conn) {
 			handlePing(enc, cmd)
 		case CmdEcho:
 			handleEcho(enc, cmd)
+		case CmdSet:
+			handleSet(enc, cmd)
+		case CmdGet:
+			handleGet(enc, cmd)
 		case CmdUnknown:
-			fmt.Println("unrecognized command")
+			encError(enc, "unrecognized command")
 		}
 	}
 }
@@ -63,9 +67,7 @@ func handlePing(enc *resp.Encoder, cmd Command) {
 		return
 	}
 	if len(cmd.Args) != 2 {
-		if err := enc.Encode(fmt.Errorf("ERR wrong number arguments for command")); err != nil {
-			fmt.Println("error sending error:", err)
-		}
+		encError(enc, "wrong number arguments for command")
 		return
 	}
 	if err := enc.Encode(cmd.Args[1]); err != nil {
@@ -75,13 +77,17 @@ func handlePing(enc *resp.Encoder, cmd Command) {
 
 func handleEcho(enc *resp.Encoder, cmd Command) {
 	if len(cmd.Args) != 2 {
-		if err := enc.Encode(fmt.Errorf("ERR wrong number arguments for command")); err != nil {
-			fmt.Println("error sending error:", err)
-		}
+		encError(enc, "wrong number arguments for command")
 		return
 	}
 	if err := enc.Encode(cmd.Args[1]); err != nil {
 		fmt.Println("error responding to ECHO:", err)
+	}
+}
+
+func encError(enc *resp.Encoder, msg string) {
+	if err := enc.Encode(fmt.Errorf("ERR %s", msg)); err != nil {
+		fmt.Println("error sending error:", err)
 	}
 }
 
@@ -96,6 +102,10 @@ func (c Command) Root() Cmd {
 		return CmdPing
 	case string(CmdEcho):
 		return CmdEcho
+	case string(CmdGet):
+		return CmdGet
+	case string(CmdSet):
+		return CmdSet
 	default:
 		return CmdUnknown
 	}
@@ -104,8 +114,10 @@ func (c Command) Root() Cmd {
 type Cmd string
 
 const (
-	CmdPing    Cmd = "PING"
 	CmdEcho    Cmd = "ECHO"
+	CmdGet     Cmd = "GET"
+	CmdSet     Cmd = "SET"
+	CmdPing    Cmd = "PING"
 	CmdUnknown Cmd = "UNKNOWN"
 )
 
